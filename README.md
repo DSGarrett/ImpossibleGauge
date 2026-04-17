@@ -149,7 +149,8 @@ Checking: Frogamander
 
 ## Tradeoffs / Gotchas
 
-- The addon injects real `/check` packets against the live server. Keep `delay` sane (≥ 1 s) to avoid looking like a bot.
+- The addon injects real `/check` packets against the live server. Keep `delay` sane (≥ 1 s) to avoid looking like a bot. AND AS USUAL USE AT YOUR OWN RISK, Checking 700 mobs in limbus, with the way the event is currently structured seems understandable to me, but like all this 3rd party stuff, YOU COULD BE BANNED (Again!)
+- USE THIS AT YOUR OWN RISK, IT'S ALOT OF PACKETS!
 - `/check` in FFXI returns a valid response out to ~50 yalms; beyond that you just get no response, which means no false positives but also no detection.
 - **Chat suppression is name-based with a 3 s window.** If you manually `/check` a mob the addon just auto-checked, your manual response is suppressed too. Also: a party chat line that happens to contain the same mob name within 3 s will be hidden. Toggle off with `//ig suppress off` if this bites.
 - State is **per-zone**: confirmations clear when you zone. Same mob ID in the same zone won't re-alert until you `//ig clear` or zone out and back.
