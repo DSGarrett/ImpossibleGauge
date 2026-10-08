@@ -10,6 +10,7 @@ texts   = require('texts')
 
 local defaults = {
     enabled = false,
+    auto_target = true,
     range = 50,
     delay = 2.0,
     scan_interval = 5.0,
@@ -228,6 +229,27 @@ windower.register_event('incoming chunk', function(id, data)
     confirmed[target_id] = name
     table.insert(confirmed_order, target_id)
     notify(name)
+
+    -- Only select a live monster checked by this scanner for this player.
+    -- Disabling first prevents later in-flight responses from changing targets.
+    local player = windower.ffxi.get_mob_by_target('me')
+    if settings.enabled and settings.auto_target and checked[target_id]
+        and player and p['Actor'] == player.id
+        and mob and mob.spawn_type == 16 and mob.valid_target
+        and mob.hpp and mob.hpp > 0
+    then
+        settings.enabled = false
+        pending = {}
+        pending_count = 0
+        current_checking = nil
+        packets.inject(packets.new('incoming', 0x058, {
+            ['Player'] = player.id,
+            ['Target'] = target_id,
+            ['Player Index'] = player.index,
+        }))
+        chat('Target requested: ' .. name .. '. Scanning paused; //ig on to resume.')
+        update_hud()
+    end
 end)
 
 windower.register_event('zone change', function()
@@ -247,10 +269,11 @@ windower.register_event('unload', function()
 end)
 
 local function show_status()
-    chat(('enabled=%s  range=%d  delay=%.1fs  scan=%.1fs  sound=%s  hud=%s  suppress=%s')
+    chat(('enabled=%s  range=%d  delay=%.1fs  scan=%.1fs  sound=%s  hud=%s  suppress=%s  auto_target=%s')
         :format(tostring(settings.enabled), settings.range, settings.delay,
                 settings.scan_interval, tostring(settings.sound),
-                tostring(settings.hud.visible), tostring(settings.suppress)))
+                tostring(settings.hud.visible), tostring(settings.suppress),
+                tostring(settings.auto_target)))
 end
 
 windower.register_event('addon command', function(cmd, ...)
@@ -269,6 +292,20 @@ windower.register_event('addon command', function(cmd, ...)
         settings.enabled = not settings.enabled
         config.save(settings)
         chat(settings.enabled and 'enabled' or 'disabled')
+    elseif cmd == 'target' then
+        local sub = (args[1] or 'toggle'):lower()
+        if sub == 'on' then
+            settings.auto_target = true
+        elseif sub == 'off' then
+            settings.auto_target = false
+        elseif sub == 'toggle' then
+            settings.auto_target = not settings.auto_target
+        else
+            chat('usage: //ig target [on|off|toggle]')
+            return
+        end
+        config.save(settings)
+        chat('auto-target ' .. (settings.auto_target and 'on' or 'off'))
     elseif cmd == 'range' and args[1] then
         local v = tonumber(args[1])
         if v and v > 0 then
@@ -357,6 +394,7 @@ windower.register_event('addon command', function(cmd, ...)
         chat('commands:')
         local c = settings.chat_color
         windower.add_to_chat(c, '  //ig on | off | toggle')
+        windower.add_to_chat(c, '  //ig target [on|off|toggle] auto-target and pause on a match')
         windower.add_to_chat(c, '  //ig range <yalms>     (default 50)')
         windower.add_to_chat(c, '  //ig delay <seconds>   (default 2.0)')
         windower.add_to_chat(c, '  //ig scan <seconds>    (default 5.0)')
